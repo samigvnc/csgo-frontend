@@ -135,7 +135,7 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <div className="min-h-screen flex items-center justify-center">
-                    <h1 className="text-4xl text-white">Pick'em - Yakında</h1>
+                    <h1 className="text-4xl text-white">Pick&apos;em - Yakında</h1>
                   </div>
                 </Layout>
               </ProtectedRoute>

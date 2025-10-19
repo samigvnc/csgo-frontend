@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/purity */
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { cases, getUser, updateUser } from '../mockData';

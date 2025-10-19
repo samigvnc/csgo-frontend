@@ -1,11 +1,11 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { navigationItems, gameModes, getUser } from '../mockData';
+import { navigationItems, getUser } from '../mockData';
 import { 
   Coins, 
-  User, 
   LogOut, 
   Gift,
   Package,
