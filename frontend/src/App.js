@@ -1,40 +1,33 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React, { useEffect } from "react";
+import "./App.css";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Layout from "./components/Layout";
+import Auth from "./pages/Auth";
+import Home from "./pages/Home";
+import Cases from "./pages/Cases";
+import CaseOpening from "./pages/CaseOpening";
+import Inventory from "./pages/Inventory";
+import Profile from "./pages/Profile";
+import Battles from "./pages/Battles";
+import Contracts from "./pages/Contracts";
+import { Toaster } from "./components/ui/toaster";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('hellcase_token');
+  if (!token) {
+    return <Navigate to="/auth" replace />;
+  }
+  return children;
+};
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
+// Public Route Component (redirect if logged in)
+const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem('hellcase_token');
+  if (token) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
 };
 
 function App() {
@@ -42,11 +35,149 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
+          {/* Auth Route */}
+          <Route 
+            path="/auth" 
+            element={
+              <PublicRoute>
+                <Auth />
+              </PublicRoute>
+            } 
+          />
+
+          {/* Protected Routes with Layout */}
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Home />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/cases" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Cases />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/case/:id" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CaseOpening />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/inventory" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Inventory />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/battles" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Battles />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/contracts" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Contracts />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Placeholder routes */}
+          <Route 
+            path="/pickem" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <div className="min-h-screen flex items-center justify-center">
+                    <h1 className="text-4xl text-white">Pick'em - Yakında</h1>
+                  </div>
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/activities" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <div className="min-h-screen flex items-center justify-center">
+                    <h1 className="text-4xl text-white">Etkinlikler - Yakında</h1>
+                  </div>
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/contests" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <div className="min-h-screen flex items-center justify-center">
+                    <h1 className="text-4xl text-white">Çekilişler - Yakında</h1>
+                  </div>
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/levels" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <div className="min-h-screen flex items-center justify-center">
+                    <h1 className="text-4xl text-white">LVL Ödülleri - Yakında</h1>
+                  </div>
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </BrowserRouter>
+      <Toaster />
     </div>
   );
 }
