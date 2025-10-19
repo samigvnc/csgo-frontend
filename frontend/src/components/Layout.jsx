@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { navigationItems, gameModes, getUser, claimDailyBonus } from '../mockData';
+import { navigationItems, gameModes, getUser } from '../mockData';
 import { 
   Coins, 
   User, 
@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { toast } from '../hooks/use-toast';
 
+const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
+
 const iconMap = {
   'package': Package,
   'trophy': Trophy,
@@ -39,13 +41,49 @@ const iconMap = {
 const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [user, setUser] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // --- DB'den bakiye ---
+  const [balance, setBalance] = useState(null);
+  const [balLoading, setBalLoading] = useState(true);
+
+  const formatMoney = (v) =>
+    typeof v === 'number'
+      ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : '—';
+
+  const fetchBalance = async () => {
+    const email = localStorage.getItem('user_email');
+    if (!email) {
+      setBalance(null);
+      setBalLoading(false);
+      return;
+    }
+    try {
+      setBalLoading(true);
+      const res = await fetch(`${API}/public/user-by-email?email=${encodeURIComponent(email)}`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json(); // { id, email, balance }
+      setBalance(Number(data.balance ?? 0));
+    } catch (e) {
+      console.error('balance fetch error:', e);
+      setBalance(null);
+    } finally {
+      setBalLoading(false);
+    }
+  };
 
   useEffect(() => {
     const userData = getUser();
     setUser(userData);
   }, [location]);
+
+  useEffect(() => {
+    fetchBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]); // sayfa değiştikçe tazele
 
   const handleLogout = () => {
     localStorage.removeItem('hellcase_token');
@@ -57,18 +95,29 @@ const Layout = ({ children }) => {
     navigate('/auth');
   };
 
-  const handleDailyBonus = () => {
-    const updatedUser = claimDailyBonus();
-    if (updatedUser) {
-      setUser(updatedUser);
-      toast({
-        title: '🎁 Günlük Bonus!',
-        description: '100 coin kazandınız!',
+  // Günlük bonusu server üzerinden ekle ve bakiyeyi yenile
+  const handleDailyBonus = async () => {
+    const email = localStorage.getItem('user_email');
+    if (!email) {
+      toast({ title: 'Giriş gerekli', description: 'Önce giriş yapın', variant: 'destructive' });
+      return;
+    }
+    try {
+      const res = await fetch(`${API}/public/balance/add?email=${encodeURIComponent(email)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delta: 100 })
       });
-    } else {
+      if (!res.ok) throw new Error(await res.text());
+      await fetchBalance();
       toast({
-        title: 'Zaten alındı',
-        description: '24 saat sonra tekrar gelin',
+        title: '🎁 Günlük Bonus',
+        description: 'Hesabınıza +100 eklendi!'
+      });
+    } catch (e) {
+      toast({
+        title: 'Bonus alınamadı',
+        description: e.message || 'Bir sorun oluştu',
         variant: 'destructive'
       });
     }
@@ -105,26 +154,31 @@ const Layout = ({ children }) => {
 
             {/* Right Section - Desktop */}
             <div className="hidden lg:flex items-center gap-4">
+              {/* DB'den Bakiye */}
+              <div className="flex items-center gap-2 bg-[#0a0a0f] px-4 py-2 rounded-lg border border-green-500/30">
+                <Coins className="text-green-500" size={20} />
+                <span className="text-white font-semibold">
+                  {balLoading ? 'Yükleniyor…' : formatMoney(balance)}
+                </span>
+              </div>
+
+              {/* Günlük Bonus */}
+              <Button 
+                onClick={handleDailyBonus}
+                className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-semibold"
+              >
+                <Gift className="mr-2" size={18} />
+                Günlük Bonus
+              </Button>
+
+              {/* Profil */}
               {user && (
                 <>
-                  <div className="flex items-center gap-2 bg-[#0a0a0f] px-4 py-2 rounded-lg border border-green-500/30">
-                    <Coins className="text-green-500" size={20} />
-                    <span className="text-white font-semibold">{user.balance.toFixed(2)}</span>
-                  </div>
-
-                  <Button 
-                    onClick={handleDailyBonus}
-                    className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-semibold"
-                  >
-                    <Gift className="mr-2" size={18} />
-                    Günlük Bonus
-                  </Button>
-
                   <Link to="/profile">
                     <Button variant="ghost" className="flex items-center gap-2 hover:bg-purple-500/20">
                       <Avatar className="h-8 w-8 border-2 border-purple-500">
                         <AvatarFallback className="bg-purple-600 text-white">
-                          {user.username.charAt(0).toUpperCase()}
+                          {user.username?.charAt(0)?.toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="text-left">
@@ -152,21 +206,22 @@ const Layout = ({ children }) => {
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-[#1a1a2e] pt-16">
           <div className="p-4 space-y-4">
-            {user && (
-              <>
-                <div className="flex items-center gap-2 bg-[#0a0a0f] px-4 py-2 rounded-lg border border-green-500/30">
-                  <Coins className="text-green-500" size={20} />
-                  <span className="text-white font-semibold">{user.balance.toFixed(2)}</span>
-                </div>
-                <Button 
-                  onClick={handleDailyBonus}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-500"
-                >
-                  <Gift className="mr-2" size={18} />
-                  Günlük Bonus
-                </Button>
-              </>
-            )}
+            {/* DB'den Bakiye (mobil) */}
+            <div className="flex items-center gap-2 bg-[#0a0a0f] px-4 py-2 rounded-lg border border-green-500/30">
+              <Coins className="text-green-500" size={20} />
+              <span className="text-white font-semibold">
+                {balLoading ? 'Yükleniyor…' : formatMoney(balance)}
+              </span>
+            </div>
+
+            <Button 
+              onClick={handleDailyBonus}
+              className="w-full bg-gradient-to-r from-green-600 to-green-500"
+            >
+              <Gift className="mr-2" size={18} />
+              Günlük Bonus
+            </Button>
+
             {navigationItems.map(item => {
               const Icon = iconMap[item.icon];
               return (

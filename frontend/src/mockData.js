@@ -1,6 +1,8 @@
 // Mock data for Hellcase clone
 
 // Skin rarities with colors
+// en üste ekle:
+const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api";
 export const rarities = {
   consumer: { name: 'Consumer Grade', color: '#B0C3D9', multiplier: 0.5 },
   industrial: { name: 'Industrial Grade', color: '#5E98D9', multiplier: 0.8 },
@@ -65,6 +67,47 @@ const generateSkins = () => {
 
   return skins;
 };
+
+export const syncUserBalanceFromServer = async (email) => {
+  try {
+    const res = await fetch(
+      `${API}/public/user-by-email?email=${encodeURIComponent(email)}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json(); // { id, email, balance }
+    // localStorage'ı güncelle
+    return updateUser({
+      id: data.id,
+      email: data.email,
+      balance: data.balance,
+    });
+  } catch (e) {
+    console.error("syncUserBalanceFromServer error:", e);
+    return null;
+  }
+};
+
+export const changeUserBalance = async (email, delta) => {
+  try {
+    const res = await fetch(
+      `${API}/public/balance/add?email=${encodeURIComponent(email)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delta: Number(delta) }),
+      }
+    );
+    if (!res.ok) return null;
+    const updated = await res.json(); // server { id,email,balance,role... } döndürüyor
+    // localStorage'ı yeni bakiyeyle güncelle
+    return updateUser({ balance: updated.balance });
+  } catch (e) {
+    console.error("changeUserBalance error:", e);
+    return null;
+  }
+};
+
+
 
 export const skins = generateSkins();
 
@@ -160,7 +203,7 @@ export const initializeUser = () => {
       id: 1,
       username: 'Player',
       email: 'player@hellcase.com',
-      balance: 1000,
+      balance: 10000,
       level: 1,
       xp: 0,
       xpToNextLevel: 100,

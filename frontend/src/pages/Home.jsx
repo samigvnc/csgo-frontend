@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { cases, statistics, gameModes } from '../mockData';
+import { cases, statistics } from '../mockData';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -16,6 +16,8 @@ import {
   Clock
 } from 'lucide-react';
 
+const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
+
 const iconMap = {
   'package': Package,
   'arrow-up': ArrowUp,
@@ -27,6 +29,42 @@ const iconMap = {
 const Home = () => {
   const featuredCases = cases.filter(c => c.featured || c.isNew).slice(0, 3);
 
+  // --- Balance state (DB'den) ---
+  const [balance, setBalance] = useState(null);     // number | null
+  const [balLoading, setBalLoading] = useState(true);
+
+  useEffect(() => {
+    const email = localStorage.getItem('user_email');
+    if (!email) {
+      setBalLoading(false);
+      return;
+    }
+    const ac = new AbortController();
+    (async () => {
+      try {
+        setBalLoading(true);
+        const res = await fetch(
+          `${API}/public/user-by-email?email=${encodeURIComponent(email)}`,
+          { signal: ac.signal }
+        );
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json(); // { id, email, balance }
+        setBalance(Number(data.balance ?? 0));
+      } catch (e) {
+        console.error('balance fetch error:', e);
+        setBalance(null);
+      } finally {
+        setBalLoading(false);
+      }
+    })();
+    return () => ac.abort();
+  }, []);
+
+  const formatMoney = (v) =>
+    typeof v === 'number'
+      ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : '—';
+
   return (
     <div className="min-h-screen">
       {/* Hero Section - Featured Cases */}
@@ -34,6 +72,25 @@ const Home = () => {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnoiIHN0cm9rZT0iIzhhNWNmNiIgc3Ryb2tlLXdpZHRoPSIuNSIgb3BhY2l0eT0iLjEiLz48L2c+PC9zdmc+')] opacity-20"></div>
         
         <div className="max-w-7xl mx-auto px-4 relative z-10">
+
+          {/* Top right: Balance + Admin */}
+          <div className="flex justify-end items-center gap-3 mb-6">
+            {/* Balance pill */}
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#1a1a2e]/90 border border-purple-500/30 shadow-sm">
+              <span className="text-xs uppercase tracking-wide text-gray-300">Bakiye</span>
+              <span className="text-white font-semibold">
+                {balLoading ? 'Yükleniyor…' : `$ ${formatMoney(balance)}`}
+              </span>
+            </div>
+
+            {/* Admin Button */}
+            <Link to="/admin">
+              <Button className="bg-gradient-to-r from-purple-600 to-orange-600 hover:from-purple-700 hover:to-orange-700 text-white font-semibold shadow-lg">
+                Admin Paneli
+              </Button>
+            </Link>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-12">
             {/* Featured Case 1 */}
             {featuredCases[0] && (
@@ -199,7 +256,7 @@ const Home = () => {
       <section className="py-12 px-4 bg-[#16162e]">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold text-white mb-8">Popüler Kasalar</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {cases.slice(0, 8).map(caseItem => (
               <Link key={caseItem.id} to={`/case/${caseItem.id}`}>
                 <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 overflow-hidden group cursor-pointer">

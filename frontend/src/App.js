@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+// src/App.js
+import React from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
@@ -11,10 +12,11 @@ import Profile from "./pages/Profile";
 import Battles from "./pages/Battles";
 import Contracts from "./pages/Contracts";
 import { Toaster } from "./components/ui/toaster";
+import Admin from "./Admin";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('hellcase_token');
+  const token = localStorage.getItem("hellcase_token");
   if (!token) {
     return <Navigate to="/auth" replace />;
   }
@@ -23,7 +25,7 @@ const ProtectedRoute = ({ children }) => {
 
 // Public Route Component (redirect if logged in)
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem('hellcase_token');
+  const token = localStorage.getItem("hellcase_token");
   if (token) {
     return <Navigate to="/" replace />;
   }
@@ -36,96 +38,99 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Auth Route */}
-          <Route 
-            path="/auth" 
+          <Route
+            path="/auth"
             element={
               <PublicRoute>
                 <Auth />
               </PublicRoute>
-            } 
+            }
           />
 
+          {/* Admin Route (ayrı giriş ekrani içerir, Layout kullanmıyoruz) */}
+          <Route path="/admin" element={<Admin />} />
+
           {/* Protected Routes with Layout */}
-          <Route 
-            path="/" 
+          <Route
+            path="/"
             element={
               <ProtectedRoute>
                 <Layout>
                   <Home />
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/cases" 
+
+          <Route
+            path="/cases"
             element={
               <ProtectedRoute>
                 <Layout>
                   <Cases />
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/case/:id" 
+
+          <Route
+            path="/case/:id"
             element={
               <ProtectedRoute>
                 <Layout>
                   <CaseOpening />
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/inventory" 
+
+          <Route
+            path="/inventory"
             element={
               <ProtectedRoute>
                 <Layout>
                   <Inventory />
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/profile" 
+
+          <Route
+            path="/profile"
             element={
               <ProtectedRoute>
                 <Layout>
                   <Profile />
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/battles" 
+
+          <Route
+            path="/battles"
             element={
               <ProtectedRoute>
                 <Layout>
                   <Battles />
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/contracts" 
+
+          <Route
+            path="/contracts"
             element={
               <ProtectedRoute>
                 <Layout>
                   <Contracts />
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
 
           {/* Placeholder routes */}
-          <Route 
-            path="/pickem" 
+          <Route
+            path="/pickem"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -134,11 +139,11 @@ function App() {
                   </div>
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/activities" 
+
+          <Route
+            path="/activities"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -147,11 +152,11 @@ function App() {
                   </div>
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/contests" 
+
+          <Route
+            path="/contests"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -160,11 +165,11 @@ function App() {
                   </div>
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
-          
-          <Route 
-            path="/levels" 
+
+          <Route
+            path="/levels"
             element={
               <ProtectedRoute>
                 <Layout>
@@ -173,7 +178,7 @@ function App() {
                   </div>
                 </Layout>
               </ProtectedRoute>
-            } 
+            }
           />
         </Routes>
       </BrowserRouter>
