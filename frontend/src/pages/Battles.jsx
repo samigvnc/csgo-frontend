@@ -227,7 +227,7 @@ const Battles = () => {
                     </CardContent>
                   </Card>
                 ))
-              )}
+              }
             </div>
 
             {activeBattles.filter(battle => selectedMode === 'all' || battle.mode === selectedMode).length === 0 && (
