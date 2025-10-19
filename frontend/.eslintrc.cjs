@@ -1,16 +1,17 @@
 /** @type {import('eslint').Linter.Config} */
 module.exports = {
   root: true,
+  env: { browser: true, es2021: true, node: true },
+  parserOptions: { ecmaVersion: "latest", sourceType: "module" },
+  settings: { react: { version: "detect" } },
+  plugins: ["react", "react-hooks"],
   extends: [
-    'react-app',
-    'react-app/jest',
-    // React Hooks kurallarını dahil et
-    'plugin:react-hooks/recommended',
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
   ],
-  plugins: ['react', 'react-hooks'],
   rules: {
-    // (İstersen seviyesi)
-    'react-hooks/rules-of-hooks': 'error',
-    'react-hooks/exhaustive-deps': 'warn',
+    // İstersen kuralları buradan yumuşatın/sıkılaştırın
+    "react/prop-types": "off",
   },
 };
