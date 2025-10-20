@@ -335,7 +335,7 @@ const Home = () => {
                           <Badge className="absolute top-2 right-2 bg-yellow-500 text-black font-bold">PREMIUM</Badge>
                         )}
                       </div>
-                      <div className="p-4">
+                      <div className="p-8">
                         <h3 className="text-lg font-bold text-white mb-2">{caseItem.name}</h3>
                         <div className="flex items-center justify-between">
                           <span className="text-2xl font-bold text-green-500">
