@@ -164,14 +164,12 @@ const Cases = () => {
                       {/* p-8 alanını Link yaptık → tıklayınca açma ekranına götürür */}
                       {/* alt dikdörtgen = komple Link */}
                         <div className="p-8">
-                          <h3 className="text-lg font-bold text-white mb-3 truncate">{caseItem.name}</h3>
+                          <h3 className="text-lg font-bold text-white mb-2">{caseItem.name}</h3>
                           <div className="flex items-center justify-between">
-                            <span className="text-2xl font-bold text-green-500"> $ {Number(caseItem.price).toFixed(2)}</span>
-                            {/* Görsel olarak buton; Link tüm alanı kapsadığı için ayrıca tıklamayı taşır */}
-                            <span className="inline-flex items-center px-6 py-2 rounded-md bg-purple-600 hover:bg-purple-700 text-white font-semibold"></span>
-                              <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                            <span className="text-2xl font-bold text-green-500">$ {Number(caseItem.price).toFixed(2)}</span>
+                            <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
                               Aç
-                              </Button>
+                            </Button>
                           </div>
                         </div>
                     </CardContent>
