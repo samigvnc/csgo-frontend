@@ -25,28 +25,55 @@ const Cases = () => {
     let t; return (cb) => { clearTimeout(t); t = setTimeout(cb, 350); };
   }, []);
 
-  const fetchCases = async ({ q, type }) => {
-    setLoading(true); setError('');
-    try {
-      const params = new URLSearchParams();
-      if (q) params.set('search', q);
-      if (type && type !== 'all') params.set('type', type); // backend: type=premium|regular
-      params.set('limit', '48');
-      const url = `${API}/public/cases?${params.toString()}`;
-      const res = await fetch(url, { credentials: 'include' });
-      if (!res.ok) throw new Error(`Cases fetch failed (${res.status})`);
-      const data = await res.json();
-      // Beklenen şema esnek: data.items || data.data || data
-      const list = data?.items || data?.data || data || [];
-      setCases(Array.isArray(list) ? list : []);
-    } catch (e) {
-      setError(e.message || 'Kasa listesi çekilemedi');
-      toast({ title: 'Hata', description: e.message || 'Kasa listesi çekilemedi', variant: 'destructive' });
-      setCases([]);
-    } finally {
-      setLoading(false);
+  // Cases.jsx içindeki fetchCases'i bununla değiştir
+const fetchCases = async ({ q, type }) => {
+  setLoading(true); 
+  setError('');
+  try {
+    const params = new URLSearchParams();
+    if (q) params.set('search', q);
+    if (type && type !== 'all') params.set('type', type); // premium|regular
+    params.set('limit', '48');
+
+    const url = `${API}/public/cases?${params.toString()}`;
+    const res = await fetch(url, { credentials: 'include' });
+
+    // Body YALNIZCA 1 kez okunsun
+    const text = await res.text();
+
+    if (!res.ok) {
+      // Sunucudan dönen hata gövdesini da kaybetmeyelim
+      const msg = text?.slice(0, 300) || `HTTP ${res.status}`;
+      throw new Error(`Cases fetch failed (${res.status}): ${msg}`);
     }
-  };
+
+    let data;
+    try {
+      data = text ? JSON.parse(text) : [];
+    } catch {
+      throw new Error('Geçersiz JSON yanıtı (parse edilemedi).');
+    }
+
+    // Beklenen şema esnek: {items:[...]} | {data:[...]} | [...]
+    const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+    if (!Array.isArray(list)) {
+      throw new Error('Beklenmeyen yanıt şeması.');
+    }
+
+    setCases(list);
+  } catch (e) {
+    setError(e.message || 'Kasa listesi çekilemedi');
+    toast({
+      title: 'Hata',
+      description: e.message || 'Kasa listesi çekilemedi',
+      variant: 'destructive',
+    });
+    setCases([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // İlk yük + arama/filtre değişiminde çağır
   useEffect(() => {
