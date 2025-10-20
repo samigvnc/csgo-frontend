@@ -13,6 +13,7 @@ import Battles from "./pages/Battles";
 import Contracts from "./pages/Contracts";
 import { Toaster } from "./components/ui/toaster";
 import Admin from "./Admin";
+import BattlePlay from './pages/BattlePlay';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -127,7 +128,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-
+          <Route path="/battle/:id/play" element={<BattlePlay />} />
           {/* Placeholder routes */}
           <Route
             path="/pickem"
