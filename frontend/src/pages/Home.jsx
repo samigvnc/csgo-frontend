@@ -338,7 +338,7 @@ const Home = () => {
                   </div>
 
                   {/* p-4 alanı komple Link: tıklayınca yönlendirir */}
-                  <Link to={`/case/${cid}`} className="block p-4">
+                  <Link to={`/case/${cid}`} className="block p-8">
                     <h3 className="text-lg font-bold text-white mb-2">{caseItem.name}</h3>
                     <div className="flex items-center justify-between">
                       <span className="text-2xl font-bold text-green-500">
