@@ -143,26 +143,23 @@ export default function Battles() {
   };
 
   const startBattle = async (id) => {
-    try {
-      const res = await fetch(`${API}/public/battles/${id}/start`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({}),
-      });
-      const msg = await readError(res);
-      if (!res.ok) throw new Error(msg);
-      // bitmiş olabilir; bitenleri göstermek için bir alert atalım
-      const data = JSON.parse(msg);
-      if (data.status === 'finished') {
-        const tot = data.totals || {};
-        const lines = Object.entries(tot).map(([k, v]) => `• ${k}: $ ${Number(v).toFixed(2)}`).join('\n');
-        alert(`Kazanan: ${data.winner}\n\nToplamlar:\n${lines}`);
-      }
-      await fetchBattles();
-    } catch (err) {
-      alert(`Başlatma başarısız: ${err.message}`);
+  try {
+    const res = await fetch(`${API}/public/battles/${id}/start`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({}),
+    });
+    // Başarılı ise oynatma ekranına git (rounds'u orada animasyonla oynatıyoruz)
+    if (res.ok) {
+      window.location.href = `/battle/${id}/play`;
+    } else {
+      const msg = await res.text();
+      alert(msg || 'Başlatma başarısız');
     }
-  };
+  } catch (err) {
+    alert(`Başlatma hatası: ${err.message}`);
+  }
+};
 
   const filtered = battles.filter(b =>
     selectedMode === 'all' ? true : b.mode === selectedMode
