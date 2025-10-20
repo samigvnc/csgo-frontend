@@ -162,7 +162,7 @@ const Cases = () => {
                       </div>
 
                       {/* p-8 alanını Link yaptık → tıklayınca açma ekranına götürür */}
-                      <Link to={`/case/${cid}`} className="block p-8">
+                      <Link to={`/case/${cid}`} className="p-8">
                         <h3 className="text-lg font-bold text-white mb-3 truncate">{caseItem.name}</h3>
                         <div className="flex items-center justify-between">
                           <div>
