@@ -136,7 +136,7 @@ export default function Cases() {
                   // TÜM KART TEK BİR LINK — içerde başka Link/Button yok
                   <Link key={cid} to={href} className="block">
                     <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden group">
-                      <CardContent className="p-0">
+                      <CardContent className="p-8">
                         <div className="relative aspect-[3/4]">
                           <img
                             src={caseItem.image}
