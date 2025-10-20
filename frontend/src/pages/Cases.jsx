@@ -13,6 +13,13 @@ const API =
   process.env.REACT_APP_API_URL ||
   'http://127.0.0.1:8000/api';
 
+// Bu projede farklı backendlerde isimler değişebiliyor. Burada olası yolları sırayla deneyeceğiz.
+const CASES_PATHS = [
+  '/public/cases',     // bizim önerdiğimiz
+  '/cases',            // bazı projelerde bu var
+  '/case/list',        // alternatif
+];
+
 const Cases = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all'); // all | regular | premium
@@ -28,63 +35,65 @@ const Cases = () => {
     let t; return (cb) => { clearTimeout(t); t = setTimeout(cb, 350); };
   }, []);
 
-  const fetchCases = async ({ q, type }) => {
-    // Eski isteği iptal et
-    if (inFlight.current) {
-      try { inFlight.current.abort(); } catch {}
+  async function fetchFirstOk(params) {
+    const qs = new URLSearchParams(params).toString();
+
+    let lastErrText = '';
+    for (const p of CASES_PATHS) {
+      const url = `${API}${p}?${qs}`;
+      try {
+        const res = await fetch(url, { credentials: 'include', cache: 'no-store', signal: inFlight.current?.signal });
+        const text = await res.text(); // BODY SADECE BİR KEZ OKUNUYOR
+
+        if (res.status === 404) {
+          // bu path yok; diğer path ile devam et
+          lastErrText = `404 on ${p}: ${text?.slice(0,120) || ''}`;
+          continue;
+        }
+        if (!res.ok) {
+          lastErrText = `HTTP ${res.status} on ${p}: ${text?.slice(0,120) || ''}`;
+          continue;
+        }
+
+        let data;
+        try { data = text ? JSON.parse(text) : []; }
+        catch { throw new Error(`Geçersiz JSON (${p})`); }
+
+        // Şema: dizi | {items:[...]} | {data:[...]}
+        const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+        if (!Array.isArray(list)) throw new Error(`Beklenmeyen şema (${p})`);
+
+        return list;
+      } catch (e) {
+        // Abort ise dışarıda yakalanacak
+        if (e?.name === 'AbortError') throw e;
+        lastErrText = e.message;
+      }
     }
+    throw new Error(lastErrText || 'Uygun cases endpoint’i bulunamadı');
+  }
+
+  const fetchCases = async ({ q, type }) => {
+    // önceki isteği iptal et
+    if (inFlight.current) { try { inFlight.current.abort(); } catch {} }
     const controller = new AbortController();
     inFlight.current = controller;
 
     setLoading(true); setError('');
     try {
-      const params = new URLSearchParams();
-      if (q) params.set('search', q);
-      if (type && type !== 'all') params.set('type', type); // backend: type=premium|regular
-      params.set('limit', '48');
+      const params = {};
+      if (q) params.search = q;
+      if (type && type !== 'all') params.type = type; // premium|regular
+      params.limit = '48';
 
-      const url = `${API}/public/cases?${params.toString()}`;
-      const res = await fetch(url, {
-        credentials: 'include',
-        signal: controller.signal,
-        // bazı proxy/sw araçlarının gövdeyi ön-okumasını engellemek için:
-        cache: 'no-store'
-      });
-
-      // Body'yi SADECE BİR KEZ oku (text)
-      const text = await res.text();
-
-      if (!res.ok) {
-        const msg = text?.slice(0, 300) || `HTTP ${res.status}`;
-        throw new Error(`Cases fetch failed (${res.status}): ${msg}`);
-      }
-
-      let data;
-      try {
-        data = text ? JSON.parse(text) : [];
-      } catch {
-        throw new Error('Geçersiz JSON yanıtı (parse edilemedi).');
-      }
-
-      // Beklenen şema esnek: {items:[...]} | {data:[...]} | [...]
-      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
-      if (!Array.isArray(list)) {
-        throw new Error('Beklenmeyen yanıt şeması.');
-      }
-
+      const list = await fetchFirstOk(params);
       setCases(list);
     } catch (e) {
-      // iptal hatasını kullanıcıya göstermeyelim
-      if (e?.name === 'AbortError') return;
+      if (e?.name === 'AbortError') return; // iptal
       setError(e.message || 'Kasa listesi çekilemedi');
-      toast({
-        title: 'Hata',
-        description: e.message || 'Kasa listesi çekilemedi',
-        variant: 'destructive',
-      });
+      toast({ title: 'Hata', description: e.message || 'Kasa listesi çekilemedi', variant: 'destructive' });
       setCases([]);
     } finally {
-      // sadece en son istekse loading’i kapat
       if (inFlight.current === controller) {
         setLoading(false);
         inFlight.current = null;
@@ -156,15 +165,11 @@ const Cases = () => {
                         alt={caseItem.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
-
-                      {/* Badges */}
                       <div className="absolute top-2 right-2 flex flex-col gap-2">
                         {caseItem.isNew && <Badge className="bg-orange-500 text-white font-bold">YENİ</Badge>}
                         {caseItem.isPremium && <Badge className="bg-yellow-500 text-black font-bold">PREMIUM</Badge>}
                         {caseItem.isEvent && <Badge className="bg-green-500 text-white font-bold">EVENT</Badge>}
                       </div>
-
-                      {/* Hover overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
                         <div className="text-white text-sm">
                           <p className="font-semibold">{(caseItem.contents?.length ?? caseItem.contentsCount ?? 0)} Ürün</p>
@@ -172,7 +177,6 @@ const Cases = () => {
                         </div>
                       </div>
                     </div>
-
                     <div className="p-4">
                       <h3 className="text-lg font-bold text-white mb-3 truncate">{caseItem.name}</h3>
                       <div className="flex items-center justify-between">
