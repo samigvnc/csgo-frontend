@@ -179,7 +179,7 @@ const Cases = () => {
                       </div>
                     </div>
 
-                    <div className="p-4">
+                    <div className="p-8">
                       <h3 className="text-lg font-bold text-white mb-3 truncate">{caseItem.name}</h3>
                       <div className="flex items-center justify-between">
                         <div>
