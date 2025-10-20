@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button'; // sadece filtrelerde kullanılıyor
 import { Search } from 'lucide-react';
 
 const API =
@@ -11,7 +11,7 @@ const API =
   process.env.REACT_APP_API_URL ||
   'http://127.0.0.1:8000/api';
 
-const Cases = () => {
+export default function Cases() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all'); // all | regular | premium
   const [items, setItems] = useState([]);
@@ -36,7 +36,7 @@ const Cases = () => {
         cache: 'no-store',
       });
 
-      const text = await res.text();            // body'yi YALNIZ bir kez oku
+      const text = await res.text(); // body'yi yalnızca 1 kez oku
       if (!res.ok) {
         const msg = text?.slice(0, 200) || `HTTP ${res.status}`;
         throw new Error(`Kasa listesi alınamadı: ${msg}`);
@@ -131,49 +131,60 @@ const Cases = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((caseItem) => {
                 const cid = caseItem._id || caseItem.id;
+                const href = `/case/${cid}`;
                 return (
-                  <Card key={cid} className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden group">
-                    <CardContent className="p-0">
-                      <div className="relative aspect-[3/4]">
-                        <img
-                          src={caseItem.image}
-                          alt={caseItem.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
+                  // 🔴 TÜM KART TEK BİR <Link> — içerde başka Link/Button YOK
+                  <Link
+                    key={cid}
+                    to={href}
+                    className="block"
+                    onClick={() => console.debug('go to:', href)}
+                  >
+                    <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden group">
+                      <CardContent className="p-0">
+                        <div className="relative aspect-[3/4]">
+                          <img
+                            src={caseItem.image}
+                            alt={caseItem.name}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
 
-                        {/* Badges */}
-                        <div className="absolute top-2 right-2 flex flex-col gap-2">
-                          {caseItem.isNew && <Badge className="bg-orange-500 text-white font-bold">YENİ</Badge>}
-                          {(caseItem.isPremium || caseItem.type === 'premium') && (
-                            <Badge className="bg-yellow-500 text-black font-bold">PREMIUM</Badge>
-                          )}
-                          {caseItem.isEvent && <Badge className="bg-green-500 text-white font-bold">EVENT</Badge>}
-                        </div>
+                          {/* Badges */}
+                          <div className="absolute top-2 right-2 flex flex-col gap-2 pointer-events-none">
+                            {caseItem.isNew && <Badge className="bg-orange-500 text-white font-bold">YENİ</Badge>}
+                            {(caseItem.isPremium || caseItem.type === 'premium') && (
+                              <Badge className="bg-yellow-500 text-black font-bold">PREMIUM</Badge>
+                            )}
+                            {caseItem.isEvent && <Badge className="bg-green-500 text-white font-bold">EVENT</Badge>}
+                          </div>
 
-                        {/* Hover overlay — tıklamayı engellemesin */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8 pointer-events-none">
-                          <div className="text-white text-sm">
-                            <p className="font-semibold">
-                              {(caseItem.contents?.length ?? caseItem.contentsCount ?? 0)} Ürün
-                            </p>
-                            <p className="text-xs text-gray-300">Tıklayarak aç</p>
+                          {/* Hover overlay — tıklamayı engellemesin */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8 pointer-events-none">
+                            <div className="text-white text-sm">
+                              <p className="font-semibold">
+                                {(caseItem.contents?.length ?? caseItem.contentsCount ?? 0)} Ürün
+                              </p>
+                              <p className="text-xs text-gray-300">Tıklayarak aç</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* p-8 alanını Link yaptık → tıklayınca açma ekranına götürür */}
-                      {/* alt dikdörtgen = komple Link */}
+                        {/* Alt dikdörtgen — Link'in bir parçası (tamamı tıklanır) */}
                         <div className="p-8">
-                          <h3 className="text-lg font-bold text-white mb-2">{caseItem.name}</h3>
+                          <h3 className="text-lg font-bold text-white mb-3 truncate">{caseItem.name}</h3>
                           <div className="flex items-center justify-between">
-                            <span className="text-2xl font-bold text-green-500">$ {Number(caseItem.price).toFixed(2)}</span>
-                            <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                            <span className="text-2xl font-bold text-green-500">
+                              $ {Number(caseItem.price).toFixed(2)}
+                            </span>
+                            {/* Görsel buton: ayrı etkileşimli eleman DEĞİL */}
+                            <span className="inline-flex items-center px-6 py-2 rounded-md bg-purple-600 group-hover:bg-purple-700 text-white font-semibold">
                               Aç
-                            </Button>
+                            </span>
                           </div>
                         </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Link>
                 );
               })}
             </div>
@@ -188,6 +199,4 @@ const Cases = () => {
       </div>
     </div>
   );
-};
-
-export default Cases;
+}
