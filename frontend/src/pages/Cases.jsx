@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button'; // sadece filtrelerde kullanılıyor
+import { Button } from '../components/ui/button'; // sadece filtre butonları için
 import { Search } from 'lucide-react';
 
 const API =
@@ -36,7 +36,7 @@ export default function Cases() {
         cache: 'no-store',
       });
 
-      const text = await res.text(); // body'yi yalnızca 1 kez oku
+      const text = await res.text(); // body’yi yalnız 1 kez oku
       if (!res.ok) {
         const msg = text?.slice(0, 200) || `HTTP ${res.status}`;
         throw new Error(`Kasa listesi alınamadı: ${msg}`);
@@ -133,15 +133,10 @@ export default function Cases() {
                 const cid = caseItem._id || caseItem.id;
                 const href = `/case/${cid}`;
                 return (
-                  // 🔴 TÜM KART TEK BİR <Link> — içerde başka Link/Button YOK
-                  <Link
-                    key={cid}
-                    to={href}
-                    className="block"
-                    onClick={() => console.debug('go to:', href)}
-                  >
+                  // TÜM KART TEK BİR LINK — içerde başka Link/Button yok
+                  <Link key={cid} to={href} className="block">
                     <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden group">
-                      <CardContent className="p-8">
+                      <CardContent className="p-0">
                         <div className="relative aspect-[3/4]">
                           <img
                             src={caseItem.image}
@@ -169,14 +164,14 @@ export default function Cases() {
                           </div>
                         </div>
 
-                        {/* Alt dikdörtgen — Link'in bir parçası (tamamı tıklanır) */}
+                        {/* Alt dikdörtgen — Link’in bir parçası (tamamı tıklanır) */}
                         <div className="p-8">
                           <h3 className="text-lg font-bold text-white mb-3 truncate">{caseItem.name}</h3>
                           <div className="flex items-center justify-between">
                             <span className="text-2xl font-bold text-green-500">
                               $ {Number(caseItem.price).toFixed(2)}
                             </span>
-                            {/* Görsel buton: ayrı etkileşimli eleman DEĞİL */}
+                            {/* Görsel buton (ayrı etkileşim değil) */}
                             <span className="inline-flex items-center px-6 py-2 rounded-md bg-purple-600 group-hover:bg-purple-700 text-white font-semibold">
                               Aç
                             </span>
