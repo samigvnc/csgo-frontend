@@ -3,15 +3,25 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./com
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 
-const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000/api";
+const API =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) ||
+  process.env.REACT_APP_API_URL ||
+  "http://127.0.0.1:8000/api";
 
 export default function Admin() {
+  // --- auth ---
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState(localStorage.getItem("admin_token") || "");
+  const isLoggedIn = !!token;
+
+  // --- users ---
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const isLoggedIn = !!token;
+
+  // --- cases (admin görünümü: sadece ad ve id) ---
+  const [casesAdmin, setCasesAdmin] = useState([]);
+  const [casesLoading, setCasesLoading] = useState(false);
 
   const readError = async (res) => {
     try {
@@ -22,6 +32,7 @@ export default function Admin() {
     }
   };
 
+  // ---------------- AUTH ----------------
   const login = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -32,12 +43,15 @@ export default function Admin() {
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) throw new Error(await readError(res));
-      const data = await res.json();
+      const data = await res.json(); // { access_token, token_type }
       localStorage.setItem("admin_token", data.access_token);
       setToken(data.access_token);
       setEmail("");
       setPassword("");
-      setTimeout(fetchUsers, 0);
+      setTimeout(() => {
+        fetchUsers();
+        fetchCasesAdmin();
+      }, 0);
     } catch (err) {
       alert(`Giriş başarısız: ${err.message}`);
     } finally {
@@ -49,8 +63,10 @@ export default function Admin() {
     localStorage.removeItem("admin_token");
     setToken("");
     setUsers([]);
+    setCasesAdmin([]);
   };
 
+  // ---------------- USERS ----------------
   const fetchUsers = async () => {
     if (!token) return;
     setLoading(true);
@@ -58,14 +74,11 @@ export default function Admin() {
       const res = await fetch(`${API}/admin/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status === 401) {
-        logout();
-        return;
-      }
+      if (res.status === 401) return logout();
       if (!res.ok) throw new Error(await readError(res));
       setUsers(await res.json());
     } catch (err) {
-      alert(`Liste alınamadı: ${err.message}`);
+      alert(`Kullanıcı listesi alınamadı: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -81,15 +94,12 @@ export default function Admin() {
         },
         body: JSON.stringify({ balance: Number(newBalance) }),
       });
-      if (res.status === 401) {
-        logout();
-        return;
-      }
+      if (res.status === 401) return logout();
       if (!res.ok) throw new Error(await readError(res));
       const updated = await res.json();
       setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
     } catch (err) {
-      alert(`Güncelleme başarısız: ${err.message}`);
+      alert(`Bakiye güncellenemedi: ${err.message}`);
     }
   };
 
@@ -100,10 +110,7 @@ export default function Admin() {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.status === 401) {
-        logout();
-        return;
-      }
+      if (res.status === 401) return logout();
       if (!res.ok) throw new Error(await readError(res));
       setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch (err) {
@@ -111,14 +118,73 @@ export default function Admin() {
     }
   };
 
+  // ---------------- CASES (ADMIN) ----------------
+  // Sadece adlar ve id'ler gösterilecek; ekleme/silme admin uçlarıyla yapılır.
+  const fetchCasesAdmin = async () => {
+    if (!token) return;
+    setCasesLoading(true);
+    try {
+      // Admin'e özel uç varsa bunu kullan:
+      // const res = await fetch(`${API}/admin/cases`, { headers: { Authorization: `Bearer ${token}` } });
+
+      // Yoksa public listesinden ad ve id türet (ama sil/ekle için admin uçlarını kullanacağız):
+      const res = await fetch(`${API}/public/cases?limit=500`, { cache: "no-store" });
+      if (!res.ok) throw new Error(await readError(res));
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : [];
+      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
+      setCasesAdmin((list || []).map((x) => ({ _id: x._id || x.id, name: x.name })));
+    } catch (err) {
+      console.error("cases fetch error:", err);
+      setCasesAdmin([]);
+    } finally {
+      setCasesLoading(false);
+    }
+  };
+
+  const addCase = async (payload) => {
+    try {
+      const res = await fetch(`${API}/admin/cases`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (res.status === 401) return logout();
+      if (!res.ok) throw new Error(await readError(res));
+      await fetchCasesAdmin();
+      alert("Kasa eklendi");
+    } catch (err) {
+      alert(`Kasa ekleme başarısız: ${err.message}`);
+    }
+  };
+
+  const deleteCase = async (_id, name) => {
+    if (!window.confirm(`Silinsin mi: ${name}?`)) return;
+    try {
+      const res = await fetch(`${API}/admin/cases/${_id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) return logout();
+      if (!res.ok) throw new Error(await readError(res));
+      await fetchCasesAdmin();
+    } catch (err) {
+      alert(`Kasa silme başarısız: ${err.message}`);
+    }
+  };
+
   useEffect(() => {
-    if (isLoggedIn) fetchUsers();
+    if (isLoggedIn) {
+      fetchUsers();
+      fetchCasesAdmin();
+    }
     // eslint-disable-next-line
   }, [token]);
 
-  // --------------------
-  // LOGIN VIEW (THEMED)
-  // --------------------
+  // ---------------- LOGIN VIEW ----------------
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4 relative">
@@ -172,29 +238,23 @@ export default function Admin() {
     );
   }
 
-  // --------------------
-  // ADMIN LIST VIEW
-  // --------------------
+  // ---------------- ADMIN VIEW ----------------
   return (
     <div className="min-h-screen bg-[#0a0a0f] p-4 md:p-8 relative">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-transparent to-orange-900/10 pointer-events-none" />
       <div className="max-w-6xl mx-auto relative z-10 space-y-6">
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-xl md:text-2xl font-bold text-white">Admin Paneli</h2>
           <div className="flex gap-3">
-            <Button
-              onClick={fetchUsers}
-              disabled={loading}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              {loading ? "Yükleniyor..." : "Yenile"}
+            <Button onClick={fetchUsers} disabled={loading} className="bg-purple-600 hover:bg-purple-700 text-white">
+              {loading ? "Yükleniyor..." : "Kullanıcıları Yenile"}
             </Button>
-            <Button
-              variant="outline"
-              onClick={logout}
-              className="border-orange-500/40 text-orange-300 hover:bg-orange-900/20"
-            >
+            <Button onClick={fetchCasesAdmin} disabled={casesLoading} className="bg-purple-600 hover:bg-purple-700 text-white">
+              {casesLoading ? "Yükleniyor..." : "Kasaları Yenile"}
+            </Button>
+            <Button variant="outline" onClick={logout} className="border-orange-500/40 text-orange-300 hover:bg-orange-900/20">
               Çıkış
             </Button>
           </div>
@@ -221,10 +281,7 @@ export default function Admin() {
                 </thead>
                 <tbody>
                   {users.map((u) => (
-                    <tr
-                      key={u.id}
-                      className="border-t border-white/5 hover:bg-white/5 transition-colors"
-                    >
+                    <tr key={u.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
                       <td className="px-3 py-3 text-white">{u.email}</td>
                       <td className="px-3 py-3">
                         <Input
@@ -257,6 +314,100 @@ export default function Admin() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cases Management */}
+        <Card className="bg-[#1a1a2e]/95 border-purple-500/20">
+          <CardHeader>
+            <CardTitle className="text-white">Kasa Yönetimi</CardTitle>
+            <CardDescription className="text-gray-400">
+              Kasaları ekleyin veya silin (liste yalnızca kasa adlarını gösterir).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Add form */}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!token) return alert("Oturum yok");
+                const form = e.currentTarget;
+                const fd = new FormData(form);
+                const payload = {
+                  name: (fd.get("name") || "").toString().trim(),
+                  price: Number(fd.get("price") || 0),
+                  image: (fd.get("image") || "").toString().trim(),
+                  isPremium: fd.get("isPremium") === "on",
+                  isNew: fd.get("isNew") === "on",
+                  isEvent: fd.get("isEvent") === "on",
+                  contents: [],
+                  contentsCount: Number(fd.get("contentsCount") || 0) || undefined,
+                };
+                if (!payload.name) return alert("İsim zorunlu");
+                await addCase(payload);
+                form.reset();
+              }}
+              className="grid grid-cols-1 md:grid-cols-6 gap-3"
+            >
+              <div className="md:col-span-2">
+                <label className="text-sm text-gray-300">İsim *</label>
+                <Input name="name" placeholder="Örn: Awakening" className="bg-[#0a0a0f] border-purple-500/30 text-white" />
+              </div>
+              <div>
+                <label className="text-sm text-gray-300">Fiyat</label>
+                <Input name="price" type="number" step="0.01" placeholder="15.00" className="bg-[#0a0a0f] border-purple-500/30 text-white" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm text-gray-300">Görsel URL</label>
+                <Input name="image" placeholder="https://..." className="bg-[#0a0a0f] border-purple-500/30 text-white" />
+              </div>
+              <div>
+                <label className="text-sm text-gray-300">İçerik sayısı</label>
+                <Input name="contentsCount" type="number" placeholder="20" className="bg-[#0a0a0f] border-purple-500/30 text-white" />
+              </div>
+
+              <div className="flex items-center gap-4 md:col-span-3">
+                <label className="flex items-center gap-2 text-gray-300">
+                  <input type="checkbox" name="isPremium" className="accent-purple-600" /> Premium
+                </label>
+                <label className="flex items-center gap-2 text-gray-300">
+                  <input type="checkbox" name="isNew" className="accent-purple-600" /> Yeni
+                </label>
+                <label className="flex items-center gap-2 text-gray-300">
+                  <input type="checkbox" name="isEvent" className="accent-purple-600" /> Event
+                </label>
+              </div>
+
+              <div className="md:col-span-3 flex justify-end">
+                <Button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white">
+                  Kasa Ekle
+                </Button>
+              </div>
+            </form>
+
+            {/* Names list */}
+            <div className="space-y-2">
+              <div className="text-sm text-gray-400">Kayıtlı Kasalar</div>
+              <div className="rounded-lg border border-purple-500/20 divide-y divide-white/5 overflow-hidden">
+                {casesAdmin.length === 0 && (
+                  <div className="p-4 text-gray-400">{casesLoading ? "Yükleniyor..." : "Kayıt yok"}</div>
+                )}
+                {casesAdmin.map((c) => (
+                  <div key={c._id} className="p-4 flex items-center justify-between">
+                    <div className="text-white">{c.name}</div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => deleteCase(c._id, c.name)}
+                        variant="destructive"
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Sil
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
