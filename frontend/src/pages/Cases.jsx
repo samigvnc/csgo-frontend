@@ -150,8 +150,8 @@ const Cases = () => {
                           {caseItem.isEvent && <Badge className="bg-green-500 text-white font-bold">EVENT</Badge>}
                         </div>
 
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8">
+                        {/* Hover overlay — tıklamayı engellemesin */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-8 pointer-events-none">
                           <div className="text-white text-sm">
                             <p className="font-semibold">
                               {(caseItem.contents?.length ?? caseItem.contentsCount ?? 0)} Ürün
@@ -162,19 +162,20 @@ const Cases = () => {
                       </div>
 
                       {/* p-8 alanını Link yaptık → tıklayınca açma ekranına götürür */}
-                      <Link to={`/case/${cid}`} className="p-8">
-                        <h3 className="text-lg font-bold text-white mb-3 truncate">{caseItem.name}</h3>
-                        <div className="flex items-center justify-between">
-                          <div>
+                      {/* alt dikdörtgen = komple Link */}
+                        <div className="p-8">
+                          <h3 className="text-lg font-bold text-white mb-3 truncate">{caseItem.name}</h3>
+                          <div className="flex items-center justify-between">
                             <span className="text-2xl font-bold text-green-500">
                               $ {Number(caseItem.price).toFixed(2)}
                             </span>
+
+                            {/* Görsel olarak buton; Link tüm alanı kapsadığı için ayrıca tıklamayı taşır */}
+                            <span className="inline-flex items-center px-6 py-2 rounded-md bg-purple-600 hover:bg-purple-700 text-white font-semibold">
+                              Aç
+                            </span>
                           </div>
-                          <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6">
-                            Aç
-                          </Button>
                         </div>
-                      </Link>
                     </CardContent>
                   </Card>
                 );
