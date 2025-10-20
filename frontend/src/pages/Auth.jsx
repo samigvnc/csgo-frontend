@@ -16,41 +16,115 @@ const Auth = () => {
   const [registerData, setRegisterData] = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
 
-  // --------- LOGIN (mock) ----------
+  // --------- HELPERS ----------
+  const extractToken = async (res) => {
+    // Bazı backendlere uyum: {token}, {access}, {jwt}, {data:{token}}, vs.
+    try {
+      const data = await res.json();
+      const token = data?.token || data?.access || data?.jwt || data?.data?.token || null;
+      return { token, data };
+    } catch {
+      return { token: null, data: null };
+    }
+  };
+
+  // --------- LOGIN (DB kontrolü) ----------
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (!loginData.username || !loginData.password) {
-      toast({
-        title: 'Hata',
-        description: 'Lütfen tüm alanları doldurun',
-        variant: 'destructive'
-      });
+    if (!loginData.username && !loginData.email) {
+      toast({ title: 'Hata', description: 'Kullanıcı adı ya da e‑posta girin', variant: 'destructive' });
+      return;
+    }
+    if (!loginData.password) {
+      toast({ title: 'Hata', description: 'Şifrenizi girin', variant: 'destructive' });
       return;
     }
 
-    // Mock login - store auth token
-    localStorage.setItem('hellcase_token', 'mock_jwt_token_' + Date.now());
+    setLoading(true);
+    const identifier = (loginData.email || loginData.username || '').trim();
 
-    // Kullanıcı kaydı yoksa oluştur / varsa dokunmaz
-    const user = initializeUser();
-    // login formundan gelen username/email'i local'e yaz
-    updateUser({
-      username: loginData.username,
-      email: loginData.email || user.email,
-    });
-    if (loginData.email) localStorage.setItem('user_email', loginData.email);
+    // İlk tercih edilen endpoint: /public/login (FastAPI/Django vb.)
+    // Eğer proje başka bir path kullanıyorsa (örn. /auth/login), ikinci deneme yapılır.
+    const candidates = [`${API}/public/login`, `${API}/auth/login`];
 
-    // (Opsiyonel) Girişten sonra bakiyeyi DB'den senkronla
-    if (loginData.email) {
-      try { await syncUserBalanceFromServer(loginData.email); } catch {}
+    let success = false;
+    let lastErr = null;
+
+    for (const url of candidates) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            identifier, // backend tarafında username ya da email olarak karşılanabilir
+            username: loginData.username || undefined,
+            email: loginData.email || undefined,
+            password: loginData.password,
+          }),
+          credentials: 'include',
+        });
+
+        if (res.status === 401) {
+          // Kimlik bilgileri yanlış
+          toast({
+            title: 'Giriş başarısız',
+            description: 'Kullanıcı adı/e‑posta veya şifre hatalı',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+
+        if (!res.ok) {
+          lastErr = new Error(`Login error ${res.status}`);
+          continue; // sıradaki endpointi dene
+        }
+
+        const { token, data } = await extractToken(res);
+        if (!token) {
+          // Eğer backend cookie ile session veriyorsa token olmayabilir; yine de giriş başarılı sayalım
+          // Ancak local taraf için bir token gerekiyorsa mock üretilebilir
+          localStorage.setItem('hellcase_token', token || `session_cookie_login_${Date.now()}`);
+        } else {
+          localStorage.setItem('hellcase_token', token);
+        }
+
+        // Kullanıcı bilgisini güncelle
+        const user = initializeUser();
+        updateUser({
+          username: (data?.user?.username ?? loginData.username) || user.username,
+          email: (data?.user?.email ?? loginData.email) || user.email,
+        });
+        if (loginData.email || data?.user?.email) {
+          localStorage.setItem('user_email', (data?.user?.email ?? loginData.email) || '');
+        }
+
+        // DB'den bakiye çek (varsa email ile)
+        try {
+          const emailForSync = (data?.user?.email ?? loginData.email) || undefined;
+          if (emailForSync) await syncUserBalanceFromServer(emailForSync);
+        } catch {}
+
+        toast({ title: 'Başarılı!', description: 'Giriş yapıldı. Hoş geldiniz!' });
+        success = true;
+        break;
+      } catch (err) {
+        lastErr = err;
+      }
     }
 
-    toast({
-      title: 'Başarılı!',
-      description: 'Giriş yapıldı. Hoş geldiniz!',
-    });
+    if (!success) {
+      toast({
+        title: 'Giriş başarısız',
+        description: lastErr?.message || 'Sunucuya ulaşılamadı ya da beklenmeyen bir hata oluştu',
+        variant: 'destructive',
+      });
+      setLoading(false);
+      return;
+    }
 
+    setLoading(false);
     navigate('/');
   };
 
@@ -59,27 +133,18 @@ const Auth = () => {
     e.preventDefault();
 
     if (!registerData.username || !registerData.email || !registerData.password || !registerData.confirmPassword) {
-      toast({
-        title: 'Hata',
-        description: 'Lütfen tüm alanları doldurun',
-        variant: 'destructive'
-      });
+      toast({ title: 'Hata', description: 'Lütfen tüm alanları doldurun', variant: 'destructive' });
       return;
     }
 
     if (registerData.password !== registerData.confirmPassword) {
-      toast({
-        title: 'Hata',
-        description: 'Şifreler eşleşmiyor',
-        variant: 'destructive'
-      });
+      toast({ title: 'Hata', description: 'Şifreler eşleşmiyor', variant: 'destructive' });
       return;
     }
 
     try {
       setLoading(true);
 
-      // 1) DB'ye kayıt (public register)
       const res = await fetch(`${API}/public/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -87,7 +152,7 @@ const Auth = () => {
           username: registerData.username,
           email: registerData.email,
           password: registerData.password,
-          initial_balance: 1000.0, // ilk bakiye
+          initial_balance: 1000.0,
         }),
       });
 
@@ -96,32 +161,28 @@ const Auth = () => {
         throw new Error(errText || 'Kayıt başarısız');
       }
 
-      // 2) Mock auth token (oyuncu akışı şimdilik mock)
-      localStorage.setItem('hellcase_token', 'mock_jwt_token_' + Date.now());
+      // Opsiyonel: backend register dönüşünde token veriyorsa al
+      try {
+        const { token } = await extractToken(res.clone());
+        if (token) {
+          localStorage.setItem('hellcase_token', token);
+        } else {
+          localStorage.setItem('hellcase_token', 'mock_jwt_token_' + Date.now());
+        }
+      } catch {
+        localStorage.setItem('hellcase_token', 'mock_jwt_token_' + Date.now());
+      }
 
-      // 3) localStorage hellcase_user oluştur/güncelle
       const user = initializeUser();
-      updateUser({
-        username: registerData.username,
-        email: registerData.email,
-      });
+      updateUser({ username: registerData.username, email: registerData.email });
       localStorage.setItem('user_email', registerData.email);
 
-      // 4) DB’den bakiye senkron (hemen gerçek bakiyeyi çek)
       try { await syncUserBalanceFromServer(registerData.email); } catch {}
 
-      toast({
-        title: 'Başarılı!',
-        description: 'Hesap oluşturuldu ve bakiyen yüklendi!',
-      });
-
+      toast({ title: 'Başarılı!', description: 'Hesap oluşturuldu ve bakiyen yüklendi!' });
       navigate('/');
     } catch (err) {
-      toast({
-        title: 'Kayıt başarısız',
-        description: err.message || 'Beklenmeyen bir hata oluştu',
-        variant: 'destructive',
-      });
+      toast({ title: 'Kayıt başarısız', description: err.message || 'Beklenmeyen bir hata oluştu', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -156,7 +217,7 @@ const Auth = () => {
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email" className="text-gray-300">E-posta (opsiyonel ama önerilir)</Label>
+                  <Label htmlFor="login-email" className="text-gray-300">E-posta (opsiyonel)</Label>
                   <Input
                     id="login-email"
                     type="email"
@@ -167,7 +228,7 @@ const Auth = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="login-username" className="text-gray-300">Kullanıcı Adı</Label>
+                  <Label htmlFor="login-username" className="text-gray-300">Kullanıcı Adı (opsiyonel)</Label>
                   <Input
                     id="login-username"
                     type="text"
