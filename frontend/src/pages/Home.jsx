@@ -1,14 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { statistics } from '../mockData'; // sadece istatistikler mock'tan
+import { cases, statistics } from '../mockData';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import {
-  Package,
-  ArrowUp,
-  Swords,
-  FileText,
+import { 
+  Package, 
+  ArrowUp, 
+  Swords, 
+  FileText, 
   Users,
   Gamepad2,
   Shield,
@@ -16,10 +16,7 @@ import {
   Clock
 } from 'lucide-react';
 
-const API =
-  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) ||
-  process.env.REACT_APP_API_URL ||
-  'http://127.0.0.1:8000/api';
+const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
 
 const iconMap = {
   'package': Package,
@@ -30,62 +27,12 @@ const iconMap = {
 };
 
 const Home = () => {
-  // --- Kasalar (DB'den) ---
-  const [allCases, setAllCases] = useState([]);
-  const [casesLoading, setCasesLoading] = useState(true);
-  const [casesError, setCasesError] = useState('');
+  const featuredCases = cases.filter(c => c.featured || c.isNew).slice(0, 3);
 
   // --- Balance state (DB'den) ---
-  const [balance, setBalance] = useState(null);
+  const [balance, setBalance] = useState(null);     // number | null
   const [balLoading, setBalLoading] = useState(true);
 
-  // basit debounce (gerekirse)
-  const debounced = useMemo(() => {
-    let t; return (cb) => { clearTimeout(t); t = setTimeout(cb, 200); };
-  }, []);
-
-  // Kasaları çek
-  useEffect(() => {
-    const ac = new AbortController();
-    (async () => {
-      setCasesLoading(true); setCasesError('');
-      try {
-        // 24-32 kayıt yeterli; UI zaten slice ediyor
-        const url = `${API}/public/cases?limit=32`;
-        const res = await fetch(url, { credentials: 'include', cache: 'no-store', signal: ac.signal });
-        const text = await res.text(); // body YALNIZCA bir kez
-        if (!res.ok) {
-          const msg = text?.slice(0, 200) || `HTTP ${res.status}`;
-          throw new Error(`Kasa listesi alınamadı: ${msg}`);
-        }
-        let data; try { data = text ? JSON.parse(text) : []; } catch { throw new Error('Geçersiz JSON'); }
-        const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
-        if (!Array.isArray(list)) throw new Error('Beklenmeyen yanıt şeması');
-        setAllCases(list);
-      } catch (e) {
-        setAllCases([]);
-        setCasesError(e.message || 'Kasa listesi çekilemedi');
-        // burada toast kullanmak istersen import edip gösterebilirsin
-        console.error('cases fetch error:', e);
-      } finally {
-        setCasesLoading(false);
-      }
-    })();
-    return () => ac.abort();
-  }, []);
-
-  // Featured: DB’de featured alanı yoksa isNew veya isPremium’dan türet
-  const featuredCases = (allCases
-    .filter(c => c?.featured || c?.isNew || c?.isPremium)
-    .slice(0, 3)
-  );
-  // Eğer filtre boş dönerse, ilk üç kaydı göster
-  const fallbackFeatured = featuredCases.length ? featuredCases : allCases.slice(0, 3);
-
-  // Recent grid: ilk 8 kayıt
-  const recentCases = allCases.slice(0, 8);
-
-  // Balance çek
   useEffect(() => {
     const email = localStorage.getItem('user_email');
     if (!email) {
@@ -100,9 +47,8 @@ const Home = () => {
           `${API}/public/user-by-email?email=${encodeURIComponent(email)}`,
           { signal: ac.signal }
         );
-        const text = await res.text();
-        if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
-        const data = text ? JSON.parse(text) : {};
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json(); // { id, email, balance }
         setBalance(Number(data.balance ?? 0));
       } catch (e) {
         console.error('balance fetch error:', e);
@@ -124,16 +70,20 @@ const Home = () => {
       {/* Hero Section - Featured Cases */}
       <section className="relative bg-gradient-to-br from-purple-900/30 via-[#1a1a2e] to-orange-900/30 py-12">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnoiIHN0cm9rZT0iIzhhNWNmNiIgc3Ryb2tlLXdpZHRoPSIuNSIgb3BhY2l0eT0iLjEiLz48L2c+PC9zdmc+')] opacity-20"></div>
-
+        
         <div className="max-w-7xl mx-auto px-4 relative z-10">
+
           {/* Top right: Balance + Admin */}
           <div className="flex justify-end items-center gap-3 mb-6">
+            {/* Balance pill */}
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#1a1a2e]/90 border border-purple-500/30 shadow-sm">
               <span className="text-xs uppercase tracking-wide text-gray-300">Bakiye</span>
               <span className="text-white font-semibold">
                 {balLoading ? 'Yükleniyor…' : `$ ${formatMoney(balance)}`}
               </span>
             </div>
+
+            {/* Admin Button */}
             <Link to="/admin">
               <Button className="bg-gradient-to-r from-purple-600 to-orange-600 hover:from-purple-700 hover:to-orange-700 text-white font-semibold shadow-lg">
                 Admin Paneli
@@ -141,19 +91,18 @@ const Home = () => {
             </Link>
           </div>
 
-          {/* Featured grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-12">
             {/* Featured Case 1 */}
-            {!casesLoading && !casesError && fallbackFeatured[0] && (
-              <Link to={`/case/${fallbackFeatured[0]._id || fallbackFeatured[0].id}`}>
+            {featuredCases[0] && (
+              <Link to={`/case/${featuredCases[0].id}`}>
                 <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-500/30 hover:border-purple-400/60 transition-all duration-300 hover:scale-[1.02] overflow-hidden group cursor-pointer">
                   <CardContent className="p-8">
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        {fallbackFeatured[0].isNew && (
+                        {featuredCases[0].isNew && (
                           <Badge className="bg-orange-500 text-white mb-2">YENİ</Badge>
                         )}
-                        <h3 className="text-2xl font-bold text-white mb-2">{fallbackFeatured[0].name}</h3>
+                        <h3 className="text-2xl font-bold text-white mb-2">{featuredCases[0].name}</h3>
                         <p className="text-gray-400">4 SAATLIK ÇEKİLİŞ</p>
                       </div>
                       <div className="flex gap-2">
@@ -162,15 +111,15 @@ const Home = () => {
                         <div className="w-8 h-12 bg-blue-600 rounded"></div>
                       </div>
                     </div>
-
+                    
                     <div className="relative aspect-video mb-4 rounded-lg overflow-hidden">
-                      <img
-                        src={fallbackFeatured[0].image}
-                        alt={fallbackFeatured[0].name}
+                      <img 
+                        src={featuredCases[0].image} 
+                        alt={featuredCases[0].name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                     </div>
-
+                    
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-400">AWP | FT ST</p>
@@ -178,7 +127,7 @@ const Home = () => {
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-green-500">
-                          $ {Number(fallbackFeatured[0].price).toFixed(2)}
+                          $ {featuredCases[0].price}
                         </div>
                         <div className="text-sm text-gray-400 flex items-center gap-2 justify-end mt-2">
                           <Clock size={14} />
@@ -192,16 +141,16 @@ const Home = () => {
             )}
 
             {/* Featured Case 2 */}
-            {!casesLoading && !casesError && fallbackFeatured[1] && (
-              <Link to={`/case/${fallbackFeatured[1]._id || fallbackFeatured[1].id}`}>
+            {featuredCases[1] && (
+              <Link to={`/case/${featuredCases[1].id}`}>
                 <Card className="bg-gradient-to-br from-red-900/50 to-red-800/30 border-red-500/30 hover:border-red-400/60 transition-all duration-300 hover:scale-[1.02] overflow-hidden group cursor-pointer">
                   <CardContent className="p-8">
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        {(fallbackFeatured[1].isPremium || fallbackFeatured[1].type === 'premium') && (
+                        {featuredCases[1].isPremium && (
                           <Badge className="bg-yellow-500 text-black mb-2 font-bold">PREMIUM</Badge>
                         )}
-                        <h3 className="text-2xl font-bold text-white mb-2">{fallbackFeatured[1].name}</h3>
+                        <h3 className="text-2xl font-bold text-white mb-2">{featuredCases[1].name}</h3>
                         <p className="text-gray-400">PREMIUM ÇEKİLİŞ</p>
                       </div>
                       <div className="flex gap-2">
@@ -210,15 +159,15 @@ const Home = () => {
                         <div className="w-8 h-12 bg-blue-600 rounded"></div>
                       </div>
                     </div>
-
+                    
                     <div className="relative aspect-video mb-4 rounded-lg overflow-hidden">
-                      <img
-                        src={fallbackFeatured[1].image}
-                        alt={fallbackFeatured[1].name}
+                      <img 
+                        src={featuredCases[1].image} 
+                        alt={featuredCases[1].name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                     </div>
-
+                    
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-400">★ Huntsman Knife | MW ST</p>
@@ -226,7 +175,7 @@ const Home = () => {
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-green-500">
-                          $ {Number(fallbackFeatured[1].price).toFixed(2)}
+                          $ {featuredCases[1].price}
                         </div>
                         <div className="text-sm text-gray-400 flex items-center gap-2 justify-end mt-2">
                           <Clock size={14} />
@@ -285,12 +234,12 @@ const Home = () => {
           </div>
 
           <div className="relative h-[400px] rounded-2xl overflow-hidden">
-            <img
+            <img 
               src="https://placehold.co/1200x400/4B0082/ffffff?text=ESPORTS+EVENT"
               alt="Esports Event"
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items:end">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-end">
               <div className="p-8 w-full">
                 <h2 className="text-4xl font-bold text-white mb-4">ESPORTS EVENT</h2>
                 <p className="text-gray-300 mb-4">En büyük turnuvaları takip edin ve özel kasaları açın!</p>
@@ -307,60 +256,39 @@ const Home = () => {
       <section className="py-12 px-4 bg-[#16162e]">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold text-white mb-8">Popüler Kasalar</h2>
-
-          {casesLoading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-[360px] rounded-xl bg-[#1a1a2e] border border-purple-500/20 animate-pulse" />
-              ))}
-            </div>
-          )}
-
-          {!casesLoading && !casesError && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {recentCases.map(caseItem => (
-                <Link key={caseItem._id || caseItem.id} to={`/case/${caseItem._id || caseItem.id}`}>
-                  <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 overflow-hidden group cursor-pointer">
-                    <CardContent className="p-0">
-                      <div className="relative aspect-[3/4]">
-                        <img
-                          src={caseItem.image}
-                          alt={caseItem.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                        {caseItem.isNew && (
-                          <Badge className="absolute top-2 right-2 bg-orange-500 text-white">YENİ</Badge>
-                        )}
-                        {(caseItem.isPremium || caseItem.type === 'premium') && (
-                          <Badge className="absolute top-2 right-2 bg-yellow-500 text-black font-bold">PREMIUM</Badge>
-                        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {cases.slice(0, 8).map(caseItem => (
+              <Link key={caseItem.id} to={`/case/${caseItem.id}`}>
+                <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 overflow-hidden group cursor-pointer">
+                  <CardContent className="p-0">
+                    <div className="relative aspect-[3/4]">
+                      <img 
+                        src={caseItem.image} 
+                        alt={caseItem.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      {caseItem.isNew && (
+                        <Badge className="absolute top-2 right-2 bg-orange-500 text-white">YENİ</Badge>
+                      )}
+                      {caseItem.isPremium && (
+                        <Badge className="absolute top-2 right-2 bg-yellow-500 text-black font-bold">PREMIUM</Badge>
+                      )}
+                    </div>
+                    <div className="p-8">
+                      <h3 className="text-lg font-bold text-white mb-2">{caseItem.name}</h3>
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl font-bold text-green-500">$ {caseItem.price}</span>
+                        <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                          Aç
+                        </Button>
                       </div>
-                      <div className="p-8">
-                        <h3 className="text-lg font-bold text-white mb-2">{caseItem.name}</h3>
-                        <div className="flex items-center justify-between">
-                          <span className="text-2xl font-bold text-green-500">
-                            $ {Number(caseItem.price).toFixed(2)}
-                          </span>
-                          {/* Not: Cases sayfasında p-8 yapınca link davranışı düzeldiğini söylemiştin.
-                              Burada Link Card'ı sardığı için ekstra class gerekmeden yönlendirecek. */}
-                          <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                            Aç
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {!casesLoading && casesError && (
-            <div className="text-center py-12">
-              <p className="text-red-400">{casesError}</p>
-            </div>
-          )}
-
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+          
           <div className="text-center mt-8">
             <Link to="/cases">
               <Button className="bg-gradient-to-r from-purple-600 to-orange-600 hover:from-purple-700 hover:to-orange-700 text-white font-semibold px-8 py-6 text-lg">
