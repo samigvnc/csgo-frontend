@@ -121,26 +121,63 @@ export default function Admin() {
   // ---------------- CASES (ADMIN) ----------------
   // Sadece adlar ve id'ler gösterilecek; ekleme/silme admin uçlarıyla yapılır.
   const fetchCasesAdmin = async () => {
-    if (!token) return;
-    setCasesLoading(true);
-    try {
-      // Admin'e özel uç varsa bunu kullan:
-      // const res = await fetch(`${API}/admin/cases`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!token) return;
+  setCasesLoading(true);
+  try {
+    // 1) Admin endpoint'i dene (sadece ad + id dönüyor olmalı)
+    let res = await fetch(`${API}/admin/cases`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
 
-      // Yoksa public listesinden ad ve id türet (ama sil/ekle için admin uçlarını kullanacağız):
-      const res = await fetch(`${API}/public/cases?limit=500`, { cache: "no-store" });
-      if (!res.ok) throw new Error(await readError(res));
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : [];
-      const list = Array.isArray(data) ? data : (data?.items || data?.data || []);
-      setCasesAdmin((list || []).map((x) => ({ _id: x._id || x.id, name: x.name })));
-    } catch (err) {
-      console.error("cases fetch error:", err);
-      setCasesAdmin([]);
-    } finally {
-      setCasesLoading(false);
+    if (res.status === 401) {
+      // token düşmüş olabilir
+      logout();
+      return;
     }
-  };
+
+    // Admin endpoint yoksa (404) -> public'e fallback
+    if (res.status === 404) {
+      res = await fetch(`${API}/public/cases?limit=500`, { cache: "no-store" });
+    }
+
+    const text = await res.text();
+    if (!res.ok) {
+      const msg = text?.slice(0, 200) || `HTTP ${res.status}`;
+      throw new Error(`Kasalar alınamadı: ${msg}`);
+    }
+
+    let data;
+    try { data = text ? JSON.parse(text) : []; }
+    catch { throw new Error("Geçersiz JSON"); }
+
+    // admin/cases ise dizi [{_id,name},...] bekliyoruz
+    // public/cases ise {items:[...]} / dizi
+    let list;
+    if (Array.isArray(data)) {
+      list = data;
+    } else if (data?.items || data?.data) {
+      list = data.items || data.data || [];
+    } else {
+      list = [];
+    }
+
+    // her iki durumda normalize et
+    const normalized = (list || []).map((x) => ({
+      _id: x._id || x.id,
+      name: x.name,
+    })).filter(c => c._id && c.name);
+
+    setCasesAdmin(normalized);
+  } catch (err) {
+    console.error("cases admin fetch error:", err);
+    alert(err.message || "Kasalar alınamadı"); // görünür olsun
+    setCasesAdmin([]);
+  } finally {
+    setCasesLoading(false);
+  }
+};
+
 
   const addCase = async (payload) => {
     try {
