@@ -318,40 +318,42 @@ const Home = () => {
 
           {!casesLoading && !casesError && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {recentCases.map(caseItem => (
-                <Link key={caseItem._id || caseItem.id} to={`/case/${caseItem._id || caseItem.id}`}>
-                  <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 overflow-hidden group cursor-pointer">
-                    <CardContent className="p-0">
-                      <div className="relative aspect-[3/4]">
-                        <img
-                          src={caseItem.image}
-                          alt={caseItem.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                        {caseItem.isNew && (
-                          <Badge className="absolute top-2 right-2 bg-orange-500 text-white">YENİ</Badge>
-                        )}
-                        {(caseItem.isPremium || caseItem.type === 'premium') && (
-                          <Badge className="absolute top-2 right-2 bg-yellow-500 text-black font-bold">PREMIUM</Badge>
-                        )}
-                      </div>
-                      <div className="p-8">
-                        <h3 className="text-lg font-bold text-white mb-2">{caseItem.name}</h3>
-                        <div className="flex items-center justify-between">
-                          <span className="text-2xl font-bold text-green-500">
-                            $ {Number(caseItem.price).toFixed(2)}
-                          </span>
-                          {/* Not: Cases sayfasında p-8 yapınca link davranışı düzeldiğini söylemiştin.
-                              Burada Link Card'ı sardığı için ekstra class gerekmeden yönlendirecek. */}
-                          <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                            Aç
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
+              {recentCases.map(caseItem => {
+            const cid = caseItem._id || caseItem.id;
+            return (
+              <Card key={cid} className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 overflow-hidden group cursor-pointer">
+                <CardContent className="p-0">
+                  <div className="relative aspect-[3/4]">
+                    <img
+                      src={caseItem.image}
+                      alt={caseItem.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    {caseItem.isNew && (
+                      <Badge className="absolute top-2 right-2 bg-orange-500 text-white">YENİ</Badge>
+                    )}
+                    {(caseItem.isPremium || caseItem.type === 'premium') && (
+                      <Badge className="absolute top-2 right-2 bg-yellow-500 text-black font-bold">PREMIUM</Badge>
+                    )}
+                  </div>
+
+                  {/* p-4 alanı komple Link: tıklayınca yönlendirir */}
+                  <Link to={`/case/${cid}`} className="block p-4">
+                    <h3 className="text-lg font-bold text-white mb-2">{caseItem.name}</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold text-green-500">
+                        $ {Number(caseItem.price).toFixed(2)}
+                      </span>
+                      <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                        Aç
+                      </Button>
+                    </div>
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
+
             </div>
           )}
 
