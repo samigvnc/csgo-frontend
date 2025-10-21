@@ -159,7 +159,7 @@ export default function Cases() {
                               <p className="font-semibold">
                                 {(caseItem.contents?.length ?? caseItem.contentsCount ?? 0)} Ürün
                               </p>
-                              <p className="text-xs text-gray-300">{caseItem._id},Tıklayarak aç</p>
+                              <p className="text-xs text-gray-300">{caseItem.id},Tıklayarak aç</p>
                             </div>
                           </div>
                         </div>
