@@ -134,7 +134,7 @@ export default function Cases() {
                 const href = `/case/${cid}`;
                 return (
                   // TÜM KART TEK BİR LINK — içerde başka Link/Button yok
-                  <Link key={cid} to={href} className="block">
+                  <Link to={`/case/${cid}`}>
                     <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden group">
                       <CardContent className="p-0">
                         <div className="relative aspect-[3/4]">
@@ -166,12 +166,15 @@ export default function Cases() {
 
                         {/* Alt dikdörtgen — Link’in bir parçası (tamamı tıklanır) */}
                         <div className="p-8">
-                          <h3 className="text-lg font-bold text-white mb-2">{caseItem.name}</h3>
+                          <h3 className="text-lg font-bold text-white mb-3 truncate">{caseItem.name}</h3>
                           <div className="flex items-center justify-between">
-                            <span className="text-2xl font-bold text-green-500">$ {Number(caseItem.price).toFixed(2)}</span>
-                            <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
+                            <span className="text-2xl font-bold text-green-500">
+                              $ {Number(caseItem.price).toFixed(2)}
+                            </span>
+                            {/* Görsel buton (ayrı etkileşim değil) */}
+                            <span className="inline-flex items-center px-6 py-2 rounded-md bg-purple-600 group-hover:bg-purple-700 text-white font-semibold">
                               Aç
-                            </Button>
+                            </span>
                           </div>
                         </div>
                       </CardContent>
