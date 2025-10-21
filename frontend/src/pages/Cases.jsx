@@ -58,7 +58,7 @@ export default function Cases() {
 
 const getId = (c) => {
   // int veya string id varsa
-  if (c && (typeof c.id === 'number' || typeof c.id === 'string')) return String(c.id);
+  if (c && (typeof c.id === 'number' || typeof c.id === 'string')) return c.id;
 
   // MongoDB export’larında sık gelen format
   if (c && c._id && typeof c._id === 'object' && c._id.$oid) return c._id.$oid;
