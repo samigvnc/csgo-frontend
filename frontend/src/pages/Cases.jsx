@@ -56,6 +56,22 @@ export default function Cases() {
     }
   };
 
+const getId = (c) => {
+  // int veya string id varsa
+  if (c && (typeof c.id === 'number' || typeof c.id === 'string')) return String(c.id);
+
+  // MongoDB export’larında sık gelen format
+  if (c && c._id && typeof c._id === 'object' && c._id.$oid) return c._id.$oid;
+
+  // "ObjectId('…')" gibi string geldiyse 24’lük hexi çek
+  if (c && typeof c._id === 'string') {
+    const m = c._id.match(/[0-9a-fA-F]{24}/);
+    if (m) return m[0];
+  }
+  return ''; // yoksa boş
+};
+
+
   useEffect(() => {
     debounced(() => fetchCases({ q: searchTerm.trim(), type: filterType }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,11 +146,11 @@ export default function Cases() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((caseItem) => {
-                const cid = caseItem.id;
+                const cid = getId(caseItem);
                 const href = `/case/${cid}`;
                 return (
                   // TÜM KART TEK BİR LINK — içerde başka Link/Button yok
-                  <Link to={`/case/${String(cid)}`}>
+                  <Link to={`/case/${cid}`}>
                     <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden group">
                       <CardContent className="p-0">
                         <div className="relative aspect-[3/4]">
@@ -159,7 +175,7 @@ export default function Cases() {
                               <p className="font-semibold">
                                 {(caseItem.contents?.length ?? caseItem.contentsCount ?? 0)} Ürün
                               </p>
-                              <p className="text-xs text-gray-300">{String(cid)},Tıklayarak aç</p>
+                              <p className="text-xs text-gray-300">{cid},Tıklayarak aç</p>
                             </div>
                           </div>
                         </div>
