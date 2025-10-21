@@ -56,11 +56,7 @@ export default function Cases() {
     }
   };
 
-const getId = (c) => {
-  // int veya string id varsa
-  if (c && (typeof c.id === 'number' || typeof c.id === 'String')) return c.id;
-  return ''; // yoksa boş
-};
+
 
 
   useEffect(() => {
@@ -137,7 +133,7 @@ const getId = (c) => {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((caseItem) => {
-                const cid = getId(caseItem);
+                const cid = caseItem._id || caseItem.id;
                 const href = `/case/${cid}`;
                 return (
                   // TÜM KART TEK BİR LINK — içerde başka Link/Button yok
