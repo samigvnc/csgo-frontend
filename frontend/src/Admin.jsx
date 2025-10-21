@@ -19,7 +19,7 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // --- cases (admin görünümü: sadece ad ve id) ---
+  // --- cases (admin görünümü) ---
   const [casesAdmin, setCasesAdmin] = useState([]);
   const [casesLoading, setCasesLoading] = useState(false);
 
@@ -43,7 +43,7 @@ export default function Admin() {
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) throw new Error(await readError(res));
-      const data = await res.json(); // { access_token, token_type }
+      const data = await res.json();
       localStorage.setItem("admin_token", data.access_token);
       setToken(data.access_token);
       setEmail("");
@@ -119,65 +119,54 @@ export default function Admin() {
   };
 
   // ---------------- CASES (ADMIN) ----------------
-  // Sadece adlar ve id'ler gösterilecek; ekleme/silme admin uçlarıyla yapılır.
   const fetchCasesAdmin = async () => {
-  if (!token) return;
-  setCasesLoading(true);
-  try {
-    // 1) Admin endpoint'i dene (sadece ad + id dönüyor olmalı)
-    let res = await fetch(`${API}/admin/cases`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+    if (!token) return;
+    setCasesLoading(true);
+    try {
+      // Önce admin uç:
+      let res = await fetch(`${API}/admin/cases`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
 
-    if (res.status === 401) {
-      // token düşmüş olabilir
-      logout();
-      return;
+      if (res.status === 401) return logout();
+
+      // Admin ucu yoksa public’e düş:
+      if (res.status === 404) {
+        res = await fetch(`${API}/public/cases?limit=500`, { cache: "no-store" });
+      }
+
+      const text = await res.text();
+      if (!res.ok) {
+        const msg = text?.slice(0, 200) || `HTTP ${res.status}`;
+        throw new Error(`Kasalar alınamadı: ${msg}`);
+      }
+
+      let data;
+      try { data = text ? JSON.parse(text) : []; }
+      catch { throw new Error("Geçersiz JSON"); }
+
+      let list;
+      if (Array.isArray(data)) list = data;
+      else if (data?.items || data?.data) list = data.items || data.data || [];
+      else list = [];
+
+      const normalized = (list || [])
+        .map((x) => ({
+          _id: x._id,                 // mongo id (olabilir)
+          id: x.id,                   // numeric id (tercih edilen)
+          name: x.name,
+        }))
+        .filter((c) => c.name && (c.id != null || c._id));
+      setCasesAdmin(normalized);
+    } catch (err) {
+      console.error("cases admin fetch error:", err);
+      alert(err.message || "Kasalar alınamadı");
+      setCasesAdmin([]);
+    } finally {
+      setCasesLoading(false);
     }
-
-    // Admin endpoint yoksa (404) -> public'e fallback
-    if (res.status === 404) {
-      res = await fetch(`${API}/public/cases?limit=500`, { cache: "no-store" });
-    }
-
-    const text = await res.text();
-    if (!res.ok) {
-      const msg = text?.slice(0, 200) || `HTTP ${res.status}`;
-      throw new Error(`Kasalar alınamadı: ${msg}`);
-    }
-
-    let data;
-    try { data = text ? JSON.parse(text) : []; }
-    catch { throw new Error("Geçersiz JSON"); }
-
-    // admin/cases ise dizi [{_id,name},...] bekliyoruz
-    // public/cases ise {items:[...]} / dizi
-    let list;
-    if (Array.isArray(data)) {
-      list = data;
-    } else if (data?.items || data?.data) {
-      list = data.items || data.data || [];
-    } else {
-      list = [];
-    }
-
-    // her iki durumda normalize et
-    const normalized = (list || []).map((x) => ({
-      _id: x._id || x.id,
-      name: x.name,
-    })).filter(c => c._id && c.name);
-
-    setCasesAdmin(normalized);
-  } catch (err) {
-    console.error("cases admin fetch error:", err);
-    alert(err.message || "Kasalar alınamadı"); // görünür olsun
-    setCasesAdmin([]);
-  } finally {
-    setCasesLoading(false);
-  }
-};
-
+  };
 
   const addCase = async (payload) => {
     try {
@@ -198,18 +187,42 @@ export default function Admin() {
     }
   };
 
-  const deleteCase = async (_id, name) => {
+  // id ile silmeyi dener; 404 olursa _id ile eski uca düşer
+  const deleteCase = async (idOrMongo, name) => {
     if (!window.confirm(`Silinsin mi: ${name}?`)) return;
     try {
-      const res = await fetch(`${API}/admin/cases/${_id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let res;
+      if (typeof idOrMongo === "number") {
+        res = await fetch(`${API}/admin/cases/by-id/${idOrMongo}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 404) {
+          // fallback: eski uç (mongo _id gerekir)
+          throw new Error("_fallback_to_mongo");
+        }
+      } else {
+        // mongo _id ile sil
+        res = await fetch(`${API}/admin/cases/${idOrMongo}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+
+      if (res === undefined || res.message === "_fallback_to_mongo") {
+        throw new Error("Silme uçları bulunamadı");
+      }
+
       if (res.status === 401) return logout();
       if (!res.ok) throw new Error(await readError(res));
       await fetchCasesAdmin();
     } catch (err) {
-      alert(`Kasa silme başarısız: ${err.message}`);
+      // fallback dene: mongo _id varsa bulalım
+      if (err.message === "_fallback_to_mongo") {
+        alert("Mongo _id bulunamadı; lütfen Admin -> Kasalar listesinde _id ile silin.");
+      } else {
+        alert(`Kasa silme başarısız: ${err.message}`);
+      }
     }
   };
 
@@ -360,33 +373,48 @@ export default function Admin() {
           <CardHeader>
             <CardTitle className="text-white">Kasa Yönetimi</CardTitle>
             <CardDescription className="text-gray-400">
-              Kasaları ekleyin veya silin (liste yalnızca kasa adlarını gösterir).
+              Kasaları ekleyin veya silin (ID + ad listelenir).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Add form */}
+            {/* Add form (ID dahil) */}
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (!token) return alert("Oturum yok");
                 const form = e.currentTarget;
                 const fd = new FormData(form);
+
+                const idRaw = (fd.get("id") || "").toString().trim();
+                const name = (fd.get("name") || "").toString().trim();
+                const price = Number(fd.get("price") || 0);
+                const image = (fd.get("image") || "").toString().trim();
+
+                if (!idRaw) return alert("ID zorunlu");
+                if (!/^\d+$/.test(idRaw)) return alert("ID yalnızca sayı olmalı");
+                if (!name) return alert("İsim zorunlu");
+
                 const payload = {
-                  name: (fd.get("name") || "").toString().trim(),
-                  price: Number(fd.get("price") || 0),
-                  image: (fd.get("image") || "").toString().trim(),
+                  id: Number(idRaw),     // <-- önemli: numeric id
+                  name,
+                  price,
+                  image,
                   isPremium: fd.get("isPremium") === "on",
                   isNew: fd.get("isNew") === "on",
                   isEvent: fd.get("isEvent") === "on",
                   contents: [],
                   contentsCount: Number(fd.get("contentsCount") || 0) || undefined,
                 };
-                if (!payload.name) return alert("İsim zorunlu");
+
                 await addCase(payload);
                 form.reset();
               }}
-              className="grid grid-cols-1 md:grid-cols-6 gap-3"
+              className="grid grid-cols-1 md:grid-cols-7 gap-3"
             >
+              <div>
+                <label className="text-sm text-gray-300">ID *</label>
+                <Input name="id" placeholder="Örn: 101" className="bg-[#0a0a0f] border-purple-500/30 text-white" />
+              </div>
               <div className="md:col-span-2">
                 <label className="text-sm text-gray-300">İsim *</label>
                 <Input name="name" placeholder="Örn: Awakening" className="bg-[#0a0a0f] border-purple-500/30 text-white" />
@@ -404,7 +432,7 @@ export default function Admin() {
                 <Input name="contentsCount" type="number" placeholder="20" className="bg-[#0a0a0f] border-purple-500/30 text-white" />
               </div>
 
-              <div className="flex items-center gap-4 md:col-span-3">
+              <div className="flex items-center gap-4 md:col-span-4">
                 <label className="flex items-center gap-2 text-gray-300">
                   <input type="checkbox" name="isPremium" className="accent-purple-600" /> Premium
                 </label>
@@ -423,7 +451,7 @@ export default function Admin() {
               </div>
             </form>
 
-            {/* Names list */}
+            {/* Names list (id + name) */}
             <div className="space-y-2">
               <div className="text-sm text-gray-400">Kayıtlı Kasalar</div>
               <div className="rounded-lg border border-purple-500/20 divide-y divide-white/5 overflow-hidden">
@@ -431,11 +459,14 @@ export default function Admin() {
                   <div className="p-4 text-gray-400">{casesLoading ? "Yükleniyor..." : "Kayıt yok"}</div>
                 )}
                 {casesAdmin.map((c) => (
-                  <div key={c._id} className="p-4 flex items-center justify-between">
-                    <div className="text-white">{c.name}</div>
+                  <div key={(c.id ?? c._id)} className="p-4 flex items-center justify-between">
+                    <div className="text-white">
+                      <span className="text-gray-400 mr-2">#{c.id ?? "—"}</span>
+                      {c.name}
+                    </div>
                     <div className="flex items-center gap-2">
                       <Button
-                        onClick={() => deleteCase(c._id, c.name)}
+                        onClick={() => deleteCase(c.id ?? c._id, c.name)}
                         variant="destructive"
                         className="bg-red-600 hover:bg-red-700 text-white"
                       >
