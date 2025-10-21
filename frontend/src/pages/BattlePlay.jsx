@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const API =
   (typeof import.meta !== "undefined" &&
@@ -91,7 +92,7 @@ export default function BattlePlay() {
   const [totals, setTotals] = useState({});     // { [email]: number }
   const [wonItems, setWonItems] = useState({}); // { [email]: item[] }
 
-  const players = battle?.players || [];
+  const players = useMemo(() => battle?.players || [], [battle]);
 
   // Backend’ten savaş durumunu çek
   const fetchBattle = useMemo(
