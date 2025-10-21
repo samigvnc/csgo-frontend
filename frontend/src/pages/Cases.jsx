@@ -130,12 +130,11 @@ export default function Cases() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((caseItem) => {
-                const cid = caseItem._id || caseItem.id;
-                id = str(cid);
+                const cid = caseItem.id;
                 const href = `/case/${cid}`;
                 return (
                   // TÜM KART TEK BİR LINK — içerde başka Link/Button yok
-                  <Link to={`/case/${id}`}>
+                  <Link to={`/case/${cid}`}>
                     <Card className="bg-[#1a1a2e] border-purple-500/20 hover:border-purple-500/60 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20 overflow-hidden group">
                       <CardContent className="p-0">
                         <div className="relative aspect-[3/4]">
@@ -160,7 +159,7 @@ export default function Cases() {
                               <p className="font-semibold">
                                 {(caseItem.contents?.length ?? caseItem.contentsCount ?? 0)} Ürün
                               </p>
-                              <p className="text-xs text-gray-300">{id},Tıklayarak aç</p>
+                              <p className="text-xs text-gray-300">{cid},Tıklayarak aç</p>
                             </div>
                           </div>
                         </div>
