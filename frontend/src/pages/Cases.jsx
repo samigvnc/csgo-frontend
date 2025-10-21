@@ -58,16 +58,7 @@ export default function Cases() {
 
 const getId = (c) => {
   // int veya string id varsa
-  if (c && (typeof c.id === 'number' || typeof c.id === 'string')) return c.id;
-
-  // MongoDB export’larında sık gelen format
-  if (c && c._id && typeof c._id === 'object' && c._id.$oid) return c._id.$oid;
-
-  // "ObjectId('…')" gibi string geldiyse 24’lük hexi çek
-  if (c && typeof c._id === 'string') {
-    const m = c._id.match(/[0-9a-fA-F]{24}/);
-    if (m) return m[0];
-  }
+  if (c && (typeof c.id === 'number' || typeof c.id === 'String')) return c.id;
   return ''; // yoksa boş
 };
 
