@@ -55,7 +55,13 @@ export default function Cases() {
       setLoading(false);
     }
   };
-
+const getId = (c) => {
+  // int veya string id varsa
+  if (c && (typeof c.id === 'number' || typeof c.id === 'string')) { // 'string' (küçük s) olmalı
+    return c.id;
+  }
+  return ''; // yoksa boş
+};
 
 
 
@@ -133,7 +139,7 @@ export default function Cases() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((caseItem) => {
-                const cid = caseItem._id || caseItem.id;
+                const cid = getId(caseItem);
                 const href = `/case/${cid}`;
                 return (
                   // TÜM KART TEK BİR LINK — içerde başka Link/Button yok
